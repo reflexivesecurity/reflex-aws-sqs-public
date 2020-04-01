@@ -4,7 +4,14 @@ module "reflex_aws_sqs_public" {
   rule_description = "TODO: Provide rule description"
 
   event_pattern = <<PATTERN
-# TODO: Provide event pattern
+{
+    "detail-type": ["AWS API Call via CloudTrail"],
+    "source": ["aws.sqs"],
+    "detail": {
+        "eventSource": ["sqs.amazonaws.com"],
+        "eventName": ["SetQueueAttributes"]
+    }
+}
 PATTERN
 
   function_name   = "SqsPublic"
