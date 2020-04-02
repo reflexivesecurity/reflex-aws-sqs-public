@@ -27,7 +27,7 @@ PATTERN
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "AllowDetect"
+      "Sid": "AllowDetect",
       "Action": [
         "sqs:GetQueueAttributes"
       ],
