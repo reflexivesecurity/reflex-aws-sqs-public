@@ -4,7 +4,14 @@ module "reflex_aws_sqs_public" {
   rule_description = "TODO: Provide rule description"
 
   event_pattern = <<PATTERN
-# TODO: Provide event pattern
+{
+    "detail-type": ["AWS API Call via CloudTrail"],
+    "source": ["aws.sqs"],
+    "detail": {
+        "eventSource": ["sqs.amazonaws.com"],
+        "eventName": ["SetQueueAttributes"]
+    }
+}
 PATTERN
 
   function_name   = "SqsPublic"
@@ -13,13 +20,23 @@ PATTERN
   lambda_runtime  = "python3.7"
   environment_variable_map = {
     SNS_TOPIC = var.sns_topic_arn,
-    MODE      = var.mode
+    #MODE      = var.mode
   }
   custom_lambda_policy = <<EOF
-# TODO: Provide required lambda permissions policy
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDetect",
+      "Action": [
+        "sqs:GetQueueAttributes"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}
 EOF
-
-
 
   queue_name    = "SqsPublic"
   delay_seconds = 0

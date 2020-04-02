@@ -5,24 +5,23 @@ import os
 
 import boto3
 from reflex_core import AWSRule
+# from .policy_evaluator import PolicyEvaluator
 
 
 class SqsPublic(AWSRule):
-    """ TODO: A description for your rule """
+    """
+    Reflex Rule to detect publicly accessible SQS queues
+    """
 
-    # TODO: Instantiate whatever boto3 client you'll need, if any.
-    # Example:
-    # client = boto3.client("s3")
+    client = boto3.client("sqs")
 
     def __init__(self, event):
         super().__init__(event)
 
     def extract_event_data(self, event):
         """ Extract required event data """
-        # TODO: Extract any data you need from the triggering event.
-        #
-        # Example:
-        # self.bucket_name = event["detail"]["requestParameters"]["bucketName"]
+        self.queue_url = event["detail"]["requestParameters"]["queueUrl"]
+        self.queue_policy = self.get_queue_policy(self.queue_url)
 
     def resource_compliant(self):
         """
@@ -30,26 +29,67 @@ class SqsPublic(AWSRule):
 
         Return True if it is compliant, and False if it is not.
         """
-        # TODO: Implement a check for determining if the resource is compliant
+        policy_evaluator = PolicyEvaluator(self.queue_policy)
+        return policy_evaluator.policy_is_compliant()
 
     def remediate(self):
         """
         Fix the non-compliant resource so it conforms to the rule
         """
-        # TODO (Optional): Fix the non-compliant resource. This only needs to 
-        # be implemented for rules that remediate non-compliant resources.
-        # Purely detective rules can omit this function.
+        # TODO: This is possible to remove the policy statements by "Sid" with sqs.remove_permission()
+        pass
 
     def get_remediation_message(self):
         """ Returns a message about the remediation action that occurred """
-        # TODO: Provide a human readable message describing what occured. This
-        # message is sent in all notifications.
-        #
-        # Example:
-        # return f"The S3 bucket {self.bucket_name} was unencrypted. AES-256 encryption was enabled."
+        return f"The SQS Policy is too permissive. You are either using Principal: *, or you have no condition specified.\n Queue Url: {self.queue_url}"
+
+    def get_queue_policy(self, queue_url):
+        response = self.client.get_queue_attributes(
+            QueueUrl=queue_url,
+            AttributeNames=['Policy']
+        )
+        queue_policy = response['Attributes']['Policy']
+
+        return queue_policy
 
 
 def lambda_handler(event, _):
     """ Handles the incoming event """
     rule = SqsPublic(json.loads(event["Records"][0]["body"]))
     rule.run_compliance_rule()
+
+
+class PolicyEvaluator(object):
+
+    def __init__(self, policy_json):
+        self.policy_json = policy_json
+        self.get_policy_dict()
+
+    def get_policy_dict(self):
+        self.policy_dict = json.loads(self.policy_json)
+        return self.policy_dict
+
+    def get_statements(self):
+        return self.policy_dict.get("Statement", None)
+
+    @staticmethod
+    def statement_has_principal_star_or_blank(statement):
+        principal = statement.get("Principal", None)
+        return bool("" == principal or "*" == principal)
+
+    @staticmethod
+    def statement_has_condition(statement):
+        condition = statement.get("Condition", {})
+        return bool( len(condition.keys()) > 0)
+
+    def statement_is_compliant(self, statement):
+        return bool(
+            (not self.statement_has_principal_star_or_blank(statement))
+            or self.statement_has_condition(statement)
+        )
+
+    def policy_is_compliant(self):
+        compliant = True
+        for statement in self.get_statements():
+            compliant &= self.statement_is_compliant(statement)
+        return compliant
