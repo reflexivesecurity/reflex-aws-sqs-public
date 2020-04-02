@@ -23,10 +23,20 @@ PATTERN
     #MODE      = var.mode
   }
   custom_lambda_policy = <<EOF
-# TODO: Provide required lambda permissions policy
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDetect"
+      "Action": [
+        "sqs:GetQueueAttributes"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}
 EOF
-
-
 
   queue_name    = "SqsPublic"
   delay_seconds = 0
