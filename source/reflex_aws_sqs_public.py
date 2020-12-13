@@ -4,7 +4,8 @@ import json
 import os
 
 import boto3
-from reflex_core import AWSRule
+from reflex_core import AWSRule, subscription_confirmation
+
 # from .policy_evaluator import PolicyEvaluator
 
 
@@ -45,22 +46,25 @@ class SqsPublic(AWSRule):
 
     def get_queue_policy(self, queue_url):
         response = self.client.get_queue_attributes(
-            QueueUrl=queue_url,
-            AttributeNames=['Policy']
+            QueueUrl=queue_url, AttributeNames=["Policy"]
         )
-        queue_policy = response['Attributes']['Policy']
+        queue_policy = response["Attributes"]["Policy"]
 
         return queue_policy
 
 
 def lambda_handler(event, _):
     """ Handles the incoming event """
-    rule = SqsPublic(json.loads(event["Records"][0]["body"]))
+    print(event)
+    event_payload = json.loads(event["Records"][0]["body"])
+    if subscription_confirmation.is_subscription_confirmation(event_payload):
+        subscription_confirmation.confirm_subscription(event_payload)
+        return
+    rule = SqsPublic(event_payload)
     rule.run_compliance_rule()
 
 
 class PolicyEvaluator(object):
-
     def __init__(self, policy_json):
         self.policy_json = policy_json
         self.get_policy_dict()
@@ -80,7 +84,7 @@ class PolicyEvaluator(object):
     @staticmethod
     def statement_has_condition(statement):
         condition = statement.get("Condition", {})
-        return bool( len(condition.keys()) > 0)
+        return bool(len(condition.keys()) > 0)
 
     def statement_is_compliant(self, statement):
         return bool(

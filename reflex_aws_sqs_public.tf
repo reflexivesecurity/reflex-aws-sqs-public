@@ -1,5 +1,5 @@
 module "reflex_aws_sqs_public" {
-  source           = "git::https://github.com/cloudmitigator/reflex-engine.git//modules/cwe_lambda?ref=v0.5.4"
+  source           = "git::https://github.com/reflexivesecurity/reflex-engine.git//modules/cwe_lambda?ref=v0.5.4"
   rule_name        = "SqsPublic"
   rule_description = "TODO: Provide rule description"
 
